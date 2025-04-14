@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { AdminDetails } from "@/pages/AdminPage";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const adminDetailsSchema = z.object({
   department: z.string().min(1, "Department is required"),
@@ -46,6 +47,9 @@ export function AdminDetailsForm({ adminDetails, onSubmit }: AdminDetailsFormPro
     }
   };
 
+  const departments = ["Content Management", "User Management", "Technical", "Marketing", "General"];
+  const accessLevels = ["Standard", "Premium", "Full"];
+
   return (
     <Card>
       <CardContent className="pt-6">
@@ -58,12 +62,23 @@ export function AdminDetailsForm({ adminDetails, onSubmit }: AdminDetailsFormPro
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Department</FormLabel>
-                    <FormControl>
-                      <Input 
-                        placeholder="e.g., Content Management" 
-                        {...field} 
-                      />
-                    </FormControl>
+                    <Select 
+                      defaultValue={field.value} 
+                      onValueChange={field.onChange}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select department" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {departments.map((dept) => (
+                          <SelectItem key={dept} value={dept}>
+                            {dept}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -75,12 +90,23 @@ export function AdminDetailsForm({ adminDetails, onSubmit }: AdminDetailsFormPro
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Access Level</FormLabel>
-                    <FormControl>
-                      <Input 
-                        placeholder="e.g., Standard, Premium" 
-                        {...field} 
-                      />
-                    </FormControl>
+                    <Select 
+                      defaultValue={field.value} 
+                      onValueChange={field.onChange}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select access level" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {accessLevels.map((level) => (
+                          <SelectItem key={level} value={level}>
+                            {level}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}

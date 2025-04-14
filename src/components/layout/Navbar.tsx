@@ -29,6 +29,10 @@ export default function Navbar({ onMenuClick }: NavbarProps) {
     }
   };
 
+  const goToAdmin = () => {
+    navigate("/admin");
+  };
+
   return (
     <header className="sticky top-0 z-40 w-full bg-background/80 backdrop-blur-sm border-b">
       <div className="container flex h-16 items-center px-4 md:px-6">
@@ -74,8 +78,8 @@ export default function Navbar({ onMenuClick }: NavbarProps) {
                   <Link to="/watchlist">My Watchlist</Link>
                 </DropdownMenuItem>
                 {profile?.role === "admin" && (
-                  <DropdownMenuItem asChild>
-                    <Link to="/admin">Admin Dashboard</Link>
+                  <DropdownMenuItem onClick={goToAdmin}>
+                    Admin Dashboard
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuSeparator />
