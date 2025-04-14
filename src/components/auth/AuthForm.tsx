@@ -93,40 +93,6 @@ export function AuthForm({ formType }: AuthFormProps) {
     }
   };
 
-  // Demo credentials function
-  const loginWithDemoCredentials = async () => {
-    setIsLoading(true);
-    try {
-      if (formType === "login") {
-        await login("user@example.com", "password123");
-        navigate("/");
-      } else {
-        toast.info("Please use the login page to access demo accounts");
-      }
-    } catch (error) {
-      // Error is already handled in the context
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Demo admin credentials function
-  const loginWithAdminCredentials = async () => {
-    setIsLoading(true);
-    try {
-      if (formType === "login") {
-        await login("admin@example.com", "admin123");
-        navigate("/admin");
-      } else {
-        toast.info("Please use the login page to access admin account");
-      }
-    } catch (error) {
-      // Error is already handled in the context
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   return (
     <Card className="w-full max-w-md mx-auto shadow-xl glass-card">
       <CardHeader>
@@ -277,25 +243,6 @@ export function AuthForm({ formType }: AuthFormProps) {
               OR
             </span>
           </div>
-        </div>
-        
-        <div className="grid gap-2 w-full">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={loginWithDemoCredentials}
-            disabled={isLoading}
-          >
-            Login with Demo User
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={loginWithAdminCredentials}
-            disabled={isLoading}
-          >
-            Login with Admin Account
-          </Button>
         </div>
         
         <div className="text-center text-sm">
