@@ -4,28 +4,57 @@ import { useMovies } from "@/contexts/MovieContext";
 import FeaturedMovies from "@/components/movie/FeaturedMovies";
 import MovieList from "@/components/movie/MovieList";
 import { Skeleton } from "@/components/ui/skeleton";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function HomePage() {
-  const { movies, newReleases, loading } = useMovies();
-  const [categoryLists, setCategoryLists] = useState<{ id: number; name: string; movies: any[] }[]>([]);
+  const { movies, newReleases, loading: moviesLoading } = useMovies();
+  const [categories, setCategories] = useState<any[]>([]);
+  const [categoryMovies, setCategoryMovies] = useState<{ id: number; name: string; movies: any[] }[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Create category lists
-    const categories = [
-      { id: 1, name: "Action" },
-      { id: 3, name: "Drama" },
-      { id: 6, name: "Sci-Fi" },
-    ];
+    // Fetch categories from Supabase
+    const fetchCategories = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('categories')
+          .select('*')
+          .limit(4);
+          
+        if (error) throw error;
+        setCategories(data || []);
+      } catch (err) {
+        console.error("Error fetching categories:", err);
+      }
+    };
+    
+    fetchCategories();
+  }, []);
 
-    const lists = categories.map((category) => ({
-      ...category,
-      movies: movies.filter((movie) => movie.categoryIds.includes(category.id)).slice(0, 8),
-    }));
+  useEffect(() => {
+    // When both movies and categories are loaded, create category lists
+    if (!moviesLoading && categories.length > 0 && movies.length > 0) {
+      const lists = categories.map(category => {
+        // Filter movies that have this category
+        const categoryMovies = movies.filter(movie => 
+          movie.categories && movie.categories.some(cat => cat.id === category.id)
+        ).slice(0, 8);
+        
+        return {
+          ...category,
+          movies: categoryMovies
+        };
+      });
+      
+      setCategoryMovies(lists);
+      setLoading(false);
+    } else if (!moviesLoading && movies.length === 0) {
+      // If no movies are loading but we have none, we're done loading
+      setLoading(false);
+    }
+  }, [moviesLoading, categories, movies]);
 
-    setCategoryLists(lists);
-  }, [movies]);
-
-  if (loading) {
+  if (loading || moviesLoading) {
     return <HomePageSkeleton />;
   }
 
@@ -39,7 +68,7 @@ export default function HomePage() {
         seeAllLink="/movies/new"
       />
 
-      {categoryLists.map((category) => (
+      {categoryMovies.map((category) => (
         <MovieList
           key={category.id}
           title={category.name}

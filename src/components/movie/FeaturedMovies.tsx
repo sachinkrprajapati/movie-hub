@@ -15,8 +15,14 @@ export default function FeaturedMovies() {
   const currentMovie = featuredMovies[currentIndex];
   const isInWatchlist = currentMovie ? watchlist.includes(currentMovie.id) : false;
 
+  const handleToggleWatchlist = async () => {
+    if (currentMovie) {
+      await toggleWatchlist(currentMovie.id);
+    }
+  };
+
   useEffect(() => {
-    if (!isPaused) {
+    if (!isPaused && featuredMovies.length > 0) {
       const timer = setTimeout(() => {
         setCurrentIndex((prevIndex) => (prevIndex + 1) % featuredMovies.length);
       }, 8000);
@@ -34,7 +40,7 @@ export default function FeaturedMovies() {
     >
       <div 
         className="absolute inset-0 bg-cover bg-center transition-opacity duration-500"
-        style={{ backgroundImage: `url(${currentMovie.posterUrl})` }}
+        style={{ backgroundImage: `url(${currentMovie.poster_url})` }}
       />
       <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/50 to-transparent" />
       
@@ -75,7 +81,7 @@ export default function FeaturedMovies() {
             <Button 
               variant="outline" 
               className="gap-2"
-              onClick={() => navigate(`/movie/${currentMovie.id}/details`)}
+              onClick={() => navigate(`/movie/${currentMovie.id}`)}
             >
               <Info className="h-4 w-4" /> More Info
             </Button>
@@ -83,7 +89,7 @@ export default function FeaturedMovies() {
               variant="outline"
               size="icon"
               className={cn(isInWatchlist && "text-white bg-primary border-primary hover:bg-primary/90 hover:text-white")}
-              onClick={() => toggleWatchlist(currentMovie.id)}
+              onClick={handleToggleWatchlist}
             >
               <Heart className={cn("h-4 w-4", isInWatchlist && "fill-current")} />
             </Button>

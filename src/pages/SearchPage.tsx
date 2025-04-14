@@ -7,6 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search, X } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function SearchPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -19,18 +20,51 @@ export default function SearchPage() {
   useEffect(() => {
     setSearchValue(query);
     
-    // Simulate loading delay
-    setLoading(true);
-    const timer = setTimeout(() => {
-      const searchResults = query 
-        ? searchMovies(query)
-        : [];
-      setResults(searchResults);
-      setLoading(false);
-    }, 500);
+    const performSearch = async () => {
+      setLoading(true);
+      
+      if (!query) {
+        setResults([]);
+        setLoading(false);
+        return;
+      }
+      
+      try {
+        // Search movies using Supabase's full-text search
+        const { data, error } = await supabase
+          .from('movies')
+          .select('*, movie_categories!inner(category_id, categories:categories(id, name))')
+          .or(`title.ilike.%${query}%,description.ilike.%${query}%`);
+          
+        if (error) throw error;
+        
+        if (data) {
+          // Process the data to flatten the structure
+          const processedMovies = data.map(movie => {
+            const categories = movie.movie_categories
+              ? movie.movie_categories.map((mc: any) => mc.categories)
+              : [];
+              
+            return {
+              ...movie,
+              categories
+            };
+          });
+          
+          setResults(processedMovies);
+        } else {
+          setResults([]);
+        }
+      } catch (err) {
+        console.error("Error searching movies:", err);
+        setResults([]);
+      } finally {
+        setLoading(false);
+      }
+    };
     
-    return () => clearTimeout(timer);
-  }, [query, searchMovies]);
+    performSearch();
+  }, [query]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();

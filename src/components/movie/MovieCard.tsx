@@ -1,7 +1,7 @@
 
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Play, Heart, ClockIcon } from "lucide-react";
+import { Play, Heart } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useMovies, Movie } from "@/contexts/MovieContext";
@@ -16,6 +16,11 @@ export default function MovieCard({ movie, className }: MovieCardProps) {
   const [isHovered, setIsHovered] = useState(false);
   const isInWatchlist = watchlist.includes(movie.id);
 
+  const handleToggleWatchlist = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    await toggleWatchlist(movie.id);
+  };
+
   return (
     <div
       className={cn("movie-card group", className)}
@@ -24,7 +29,7 @@ export default function MovieCard({ movie, className }: MovieCardProps) {
     >
       <div className="relative aspect-[2/3] overflow-hidden rounded-md">
         <img
-          src={movie.posterUrl}
+          src={movie.poster_url}
           alt={movie.title}
           className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
         />
@@ -61,10 +66,7 @@ export default function MovieCard({ movie, className }: MovieCardProps) {
               size="icon"
               variant={isInWatchlist ? "default" : "secondary"}
               className="h-8 w-8"
-              onClick={(e) => {
-                e.preventDefault();
-                toggleWatchlist(movie.id);
-              }}
+              onClick={handleToggleWatchlist}
             >
               <Heart
                 className={cn("h-4 w-4", isInWatchlist && "fill-current")}

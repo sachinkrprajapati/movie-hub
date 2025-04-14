@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useMovies, Movie } from "@/contexts/MovieContext";
 import MovieCard from "@/components/movie/MovieCard";
@@ -6,25 +5,57 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Film } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function WatchlistPage() {
-  const { movies, watchlist } = useMovies();
+  const { watchlist } = useMovies();
   const [watchlistMovies, setWatchlistMovies] = useState<Movie[]>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   useEffect(() => {
-    // Filter movies in the watchlist
-    const filteredMovies = movies.filter((movie) => watchlist.includes(movie.id));
-    setWatchlistMovies(filteredMovies);
-    
-    // Add a small delay to simulate loading
-    const timer = setTimeout(() => {
+    fetchWatchlistMovies();
+  }, [watchlist, user]);
+
+  const fetchWatchlistMovies = async () => {
+    setLoading(true);
+
+    try {
+      if (watchlist.length === 0) {
+        setWatchlistMovies([]);
+        setLoading(false);
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from('movies')
+        .select('*, movie_categories!inner(category_id, categories:categories(id, name))')
+        .in('id', watchlist);
+
+      if (error) throw error;
+
+      if (data) {
+        const processedMovies = data.map(movie => {
+          const categories = movie.movie_categories
+            ? movie.movie_categories.map((mc: any) => mc.categories)
+            : [];
+            
+          return {
+            ...movie,
+            categories
+          };
+        });
+        
+        setWatchlistMovies(processedMovies);
+      }
+    } catch (err) {
+      console.error("Error fetching watchlist movies:", err);
+    } finally {
       setLoading(false);
-    }, 500);
-    
-    return () => clearTimeout(timer);
-  }, [movies, watchlist]);
+    }
+  };
 
   if (loading) {
     return <WatchlistSkeleton />;
@@ -54,7 +85,7 @@ export default function WatchlistPage() {
           <p className="text-muted-foreground mb-6 max-w-md mx-auto">
             Start adding movies to your watchlist by clicking the heart icon on any movie card.
           </p>
-          <Button onClick={() => navigate("/movies")}>Browse Movies</Button>
+          <Button onClick={() => navigate("/")}>Browse Movies</Button>
         </div>
       )}
     </div>

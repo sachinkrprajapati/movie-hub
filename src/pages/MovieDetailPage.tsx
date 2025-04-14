@@ -5,45 +5,69 @@ import { Play, Heart, Clock, MessageCircle, Share2, ArrowLeft, Users } from "luc
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-import { useMovies } from "@/contexts/MovieContext";
+import { useMovies, Movie } from "@/contexts/MovieContext";
 import MovieList from "@/components/movie/MovieList";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { toast } from "sonner";
 
 export default function MovieDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const { getMovieById, getMoviesByCategory, toggleWatchlist, watchlist, movies } = useMovies();
+  const { getMovieById, toggleWatchlist, watchlist, movies } = useMovies();
+  const [movie, setMovie] = useState<Movie | null>(null);
+  const [similarMovies, setSimilarMovies] = useState<Movie[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("movie");
   const navigate = useNavigate();
   
   const movieId = parseInt(id || "0");
-  const movie = getMovieById(movieId);
   const isInWatchlist = movie ? watchlist.includes(movie.id) : false;
   
-  // Get recommended movies (other movies in the same categories)
-  const recommendedMovies = movie 
-    ? movies
-        .filter(m => 
-          m.id !== movie.id && 
-          m.categoryIds.some(cat => movie.categoryIds.includes(cat))
-        )
-        .slice(0, 6)
-    : [];
-
   useEffect(() => {
-    if (movie) {
-      setLoading(false);
-    } else if (!loading) {
-      // If the movie isn't found and we're not already loading, redirect to 404
-      navigate("/not-found");
-    }
-    // Wait a bit to simulate loading
-    const timer = setTimeout(() => {
-      setLoading(false);
-    }, 1000);
+    const fetchMovieDetails = async () => {
+      setLoading(true);
+      
+      try {
+        const movieData = await getMovieById(movieId);
+        
+        if (!movieData) {
+          navigate("/not-found");
+          return;
+        }
+        
+        setMovie(movieData);
+        
+        // Find similar movies (ones that share categories)
+        if (movieData.categories && movieData.categories.length > 0) {
+          // Get category IDs from the current movie
+          const categoryIds = movieData.categories.map(cat => cat.id);
+          
+          // Filter movies that share at least one category with the current movie
+          const related = movies.filter(m => 
+            m.id !== movieData.id && 
+            m.categories && 
+            m.categories.some(cat => categoryIds.includes(cat.id))
+          ).slice(0, 6);
+          
+          setSimilarMovies(related);
+        }
+      } catch (error) {
+        console.error("Error fetching movie details:", error);
+        toast.error("Failed to load movie details");
+      } finally {
+        setLoading(false);
+      }
+    };
     
-    return () => clearTimeout(timer);
-  }, [movie, navigate, loading]);
+    if (movieId) {
+      fetchMovieDetails();
+    }
+  }, [movieId, getMovieById, navigate, movies]);
+
+  const handleToggleWatchlist = async () => {
+    if (movie) {
+      await toggleWatchlist(movie.id);
+    }
+  };
 
   if (loading) {
     return <MovieDetailSkeleton />;
@@ -68,7 +92,7 @@ export default function MovieDetailPage() {
         <div className="col-span-1 lg:col-span-2">
           <div className="relative aspect-[2/3] overflow-hidden rounded-lg shadow-xl">
             <img
-              src={movie.posterUrl}
+              src={movie.poster_url}
               alt={movie.title}
               className="h-full w-full object-cover"
             />
@@ -102,22 +126,12 @@ export default function MovieDetailPage() {
               {movie.rating.toFixed(1)}
             </span>
             <div className="flex flex-wrap gap-2 mt-1">
-              {movie.categoryIds.map((catId) => (
+              {movie.categories && movie.categories.map((category) => (
                 <span 
-                  key={catId}
+                  key={category.id}
                   className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
                 >
-                  {
-                    catId === 1 ? "Action" :
-                    catId === 2 ? "Comedy" :
-                    catId === 3 ? "Drama" :
-                    catId === 4 ? "Horror" :
-                    catId === 5 ? "Romance" :
-                    catId === 6 ? "Sci-Fi" :
-                    catId === 7 ? "Thriller" :
-                    catId === 8 ? "Animation" :
-                    "Unknown"
-                  }
+                  {category.name}
                 </span>
               ))}
             </div>
@@ -147,7 +161,7 @@ export default function MovieDetailPage() {
                     "gap-2",
                     isInWatchlist && "bg-primary text-primary-foreground"
                   )}
-                  onClick={() => toggleWatchlist(movie.id)}
+                  onClick={handleToggleWatchlist}
                 >
                   <Heart className={cn("h-4 w-4", isInWatchlist && "fill-current")} />
                   {isInWatchlist ? "In Watchlist" : "Add to Watchlist"}
@@ -167,8 +181,8 @@ export default function MovieDetailPage() {
                   <video 
                     className="w-full h-full object-contain" 
                     controls 
-                    poster={movie.posterUrl}
-                    src={movie.videoUrl}
+                    poster={movie.poster_url}
+                    src={movie.video_url}
                     autoPlay
                   >
                     Your browser does not support the video tag.
@@ -203,9 +217,9 @@ export default function MovieDetailPage() {
         </div>
       </div>
       
-      {recommendedMovies.length > 0 && (
+      {similarMovies.length > 0 && (
         <div className="mt-12">
-          <MovieList title="You might also like" movies={recommendedMovies} />
+          <MovieList title="You might also like" movies={similarMovies} />
         </div>
       )}
     </div>

@@ -18,6 +18,7 @@ import SearchPage from "@/pages/SearchPage";
 import AdminPage from "@/pages/AdminPage";
 import NotFound from "@/pages/NotFound";
 import { useAuth } from "@/contexts/AuthContext";
+import CategoryPage from "@/pages/CategoryPage";
 
 // Create a client
 const queryClient = new QueryClient();
@@ -70,6 +71,7 @@ const App = () => (
                 <Route index element={<HomePage />} />
                 <Route path="movie/:id" element={<MovieDetailPage />} />
                 <Route path="search" element={<SearchPage />} />
+                <Route path="category/:id" element={<CategoryPage />} />
                 
                 {/* Protected routes */}
                 <Route 

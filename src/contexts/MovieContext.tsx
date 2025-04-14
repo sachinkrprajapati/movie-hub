@@ -1,177 +1,282 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 export interface Movie {
   id: number;
   title: string;
   description: string;
-  posterUrl: string;
-  videoUrl: string;
+  poster_url: string;
+  video_url: string;
   year: number;
   duration: number;
-  categoryIds: number[];
   rating: number;
+  created_at?: string;
+  updated_at?: string;
+  categories?: { id: number; name: string }[];
 }
 
 interface MovieContextType {
   movies: Movie[];
   featuredMovies: Movie[];
   newReleases: Movie[];
-  getMovieById: (id: number) => Movie | undefined;
-  getMoviesByCategory: (categoryId: number) => Movie[];
-  searchMovies: (query: string) => Movie[];
-  toggleWatchlist: (movieId: number) => void;
+  getMovieById: (id: number) => Promise<Movie | null>;
+  getMoviesByCategory: (categoryId: number) => Promise<Movie[]>;
+  searchMovies: (query: string) => Promise<Movie[]>;
+  toggleWatchlist: (movieId: number) => Promise<void>;
   watchlist: number[];
   loading: boolean;
   error: string | null;
 }
 
-// Mock data
-const MOCK_MOVIES: Movie[] = [
-  {
-    id: 1,
-    title: "Inception",
-    description: "A thief who steals corporate secrets through dream-sharing technology is given the inverse task of planting an idea into the mind of a C.E.O.",
-    posterUrl: "https://m.media-amazon.com/images/M/MV5BMjAxMzY3NjcxNF5BMl5BanBnXkFtZTcwNTI5OTM0Mw@@._V1_.jpg",
-    videoUrl: "https://sample-videos.com/video123/mp4/720/big_buck_bunny_720p_1mb.mp4",
-    year: 2010,
-    duration: 148,
-    categoryIds: [1, 6],
-    rating: 8.8
-  },
-  {
-    id: 2,
-    title: "The Shawshank Redemption",
-    description: "Two imprisoned men bond over a number of years, finding solace and eventual redemption through acts of common decency.",
-    posterUrl: "https://m.media-amazon.com/images/M/MV5BNDE3ODcxYzMtY2YzZC00NmNlLWJiNDMtZDViZWM2MzIxZDYwXkEyXkFqcGdeQXVyNjAwNDUxODI@._V1_.jpg",
-    videoUrl: "https://sample-videos.com/video123/mp4/720/big_buck_bunny_720p_1mb.mp4",
-    year: 1994,
-    duration: 142,
-    categoryIds: [3],
-    rating: 9.3
-  },
-  {
-    id: 3,
-    title: "The Dark Knight",
-    description: "When the menace known as the Joker wreaks havoc and chaos on the people of Gotham, Batman must accept one of the greatest psychological and physical tests of his ability to fight injustice.",
-    posterUrl: "https://m.media-amazon.com/images/M/MV5BMTMxNTMwODM0NF5BMl5BanBnXkFtZTcwODAyMTk2Mw@@._V1_.jpg",
-    videoUrl: "https://sample-videos.com/video123/mp4/720/big_buck_bunny_720p_1mb.mp4",
-    year: 2008,
-    duration: 152,
-    categoryIds: [1, 3, 7],
-    rating: 9.0
-  },
-  {
-    id: 4,
-    title: "Pulp Fiction",
-    description: "The lives of two mob hitmen, a boxer, a gangster and his wife, and a pair of diner bandits intertwine in four tales of violence and redemption.",
-    posterUrl: "https://m.media-amazon.com/images/M/MV5BNGNhMDIzZTUtNTBlZi00MTRlLWFjM2ItYzViMjE3YzI5MjljXkEyXkFqcGdeQXVyNzkwMjQ5NzM@._V1_.jpg",
-    videoUrl: "https://sample-videos.com/video123/mp4/720/big_buck_bunny_720p_1mb.mp4",
-    year: 1994,
-    duration: 154,
-    categoryIds: [3, 7],
-    rating: 8.9
-  },
-  {
-    id: 5,
-    title: "Forrest Gump",
-    description: "The presidencies of Kennedy and Johnson, the Vietnam War, the Watergate scandal and other historical events unfold from the perspective of an Alabama man with an IQ of 75, whose only desire is to be reunited with his childhood sweetheart.",
-    posterUrl: "https://m.media-amazon.com/images/M/MV5BNWIwODRlZTUtY2U3ZS00Yzg1LWJhNzYtMmZiYmEyNmU1NjMzXkEyXkFqcGdeQXVyMTQxNzMzNDI@._V1_.jpg",
-    videoUrl: "https://sample-videos.com/video123/mp4/720/big_buck_bunny_720p_1mb.mp4",
-    year: 1994,
-    duration: 142,
-    categoryIds: [3, 5],
-    rating: 8.8
-  },
-  {
-    id: 6,
-    title: "The Matrix",
-    description: "A computer hacker learns from mysterious rebels about the true nature of his reality and his role in the war against its controllers.",
-    posterUrl: "https://m.media-amazon.com/images/M/MV5BNzQzOTk3OTAtNDQ0Zi00ZTVkLWI0MTEtMDllZjNkYzNjNTc4L2ltYWdlXkEyXkFqcGdeQXVyNjU0OTQ0OTY@._V1_.jpg",
-    videoUrl: "https://sample-videos.com/video123/mp4/720/big_buck_bunny_720p_1mb.mp4",
-    year: 1999,
-    duration: 136,
-    categoryIds: [1, 6],
-    rating: 8.7
-  },
-  {
-    id: 7,
-    title: "Goodfellas",
-    description: "The story of Henry Hill and his life in the mob, covering his relationship with his wife Karen Hill and his mob partners Jimmy Conway and Tommy DeVito in the Italian-American crime syndicate.",
-    posterUrl: "https://m.media-amazon.com/images/M/MV5BY2NkZjEzMDgtN2RjYy00YzM1LWI4ZmQtMjIwYjFjNmI3ZGEwXkEyXkFqcGdeQXVyNzkwMjQ5NzM@._V1_.jpg",
-    videoUrl: "https://sample-videos.com/video123/mp4/720/big_buck_bunny_720p_1mb.mp4",
-    year: 1990,
-    duration: 146,
-    categoryIds: [3, 7],
-    rating: 8.7
-  },
-  {
-    id: 8,
-    title: "Fight Club",
-    description: "An insomniac office worker and a devil-may-care soapmaker form an underground fight club that evolves into something much, much more.",
-    posterUrl: "https://m.media-amazon.com/images/M/MV5BMmEzNTkxYjQtZTc0MC00YTVjLTg5ZTEtZWMwOWVlYzY0NWIwXkEyXkFqcGdeQXVyNzkwMjQ5NzM@._V1_.jpg",
-    videoUrl: "https://sample-videos.com/video123/mp4/720/big_buck_bunny_720p_1mb.mp4",
-    year: 1999,
-    duration: 139,
-    categoryIds: [3],
-    rating: 8.8
-  }
-];
-
 const MovieContext = createContext<MovieContextType | undefined>(undefined);
 
 export const MovieProvider = ({ children }: { children: ReactNode }) => {
-  const [movies, setMovies] = useState<Movie[]>(MOCK_MOVIES);
+  const [movies, setMovies] = useState<Movie[]>([]);
   const [watchlist, setWatchlist] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Fetch all movies on initial load
   useEffect(() => {
-    // Load watchlist from localStorage
-    const savedWatchlist = localStorage.getItem("moviemate_watchlist");
-    if (savedWatchlist) {
-      try {
-        setWatchlist(JSON.parse(savedWatchlist));
-      } catch (err) {
-        console.error("Error parsing watchlist:", err);
-      }
-    }
-    setLoading(false);
+    fetchMovies();
+    fetchUserWatchlist();
   }, []);
 
-  useEffect(() => {
-    // Save watchlist to localStorage when it changes
-    localStorage.setItem("moviemate_watchlist", JSON.stringify(watchlist));
-  }, [watchlist]);
-
-  const getMovieById = (id: number) => {
-    return movies.find((movie) => movie.id === id);
-  };
-
-  const getMoviesByCategory = (categoryId: number) => {
-    return movies.filter((movie) => movie.categoryIds.includes(categoryId));
-  };
-
-  const searchMovies = (query: string) => {
-    const lowercaseQuery = query.toLowerCase();
-    return movies.filter(
-      (movie) =>
-        movie.title.toLowerCase().includes(lowercaseQuery) ||
-        movie.description.toLowerCase().includes(lowercaseQuery)
-    );
-  };
-
-  const toggleWatchlist = (movieId: number) => {
-    setWatchlist((prevWatchlist) => {
-      if (prevWatchlist.includes(movieId)) {
-        toast.success("Removed from watchlist");
-        return prevWatchlist.filter((id) => id !== movieId);
-      } else {
-        toast.success("Added to watchlist");
-        return [...prevWatchlist, movieId];
+  // Fetch all movies from Supabase
+  const fetchMovies = async () => {
+    try {
+      setLoading(true);
+      
+      // Fetch all movies
+      const { data: movieData, error: movieError } = await supabase
+        .from('movies')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (movieError) {
+        throw movieError;
       }
-    });
+      
+      // Fetch movie categories for all movies
+      const { data: categoryData, error: categoryError } = await supabase
+        .from('movie_categories')
+        .select(`
+          movie_id,
+          category_id,
+          categories:category_id(id, name)
+        `);
+        
+      if (categoryError) {
+        throw categoryError;
+      }
+      
+      // Group categories by movie_id
+      const categoriesByMovie: Record<number, { id: number; name: string }[]> = {};
+      categoryData.forEach(item => {
+        if (!categoriesByMovie[item.movie_id]) {
+          categoriesByMovie[item.movie_id] = [];
+        }
+        if (item.categories) {
+          categoriesByMovie[item.movie_id].push(item.categories);
+        }
+      });
+      
+      // Add categories to movies
+      const moviesWithCategories = movieData.map(movie => ({
+        ...movie,
+        categories: categoriesByMovie[movie.id] || []
+      }));
+      
+      setMovies(moviesWithCategories);
+    } catch (err: any) {
+      console.error("Error fetching movies:", err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch user's watchlist
+  const fetchUserWatchlist = async () => {
+    const { data: session } = await supabase.auth.getSession();
+    
+    if (!session.session) {
+      // User not logged in, use localStorage for temporary storage
+      const savedWatchlist = localStorage.getItem("moviemate_watchlist");
+      if (savedWatchlist) {
+        try {
+          setWatchlist(JSON.parse(savedWatchlist));
+        } catch (err) {
+          console.error("Error parsing watchlist:", err);
+        }
+      }
+      return;
+    }
+    
+    try {
+      const { data, error } = await supabase
+        .from('watchlists')
+        .select('movie_id')
+        .eq('user_id', session.session.user.id);
+        
+      if (error) {
+        throw error;
+      }
+      
+      if (data) {
+        const movieIds = data.map(item => item.movie_id);
+        setWatchlist(movieIds);
+        
+        // Sync with localStorage
+        localStorage.setItem("moviemate_watchlist", JSON.stringify(movieIds));
+      }
+    } catch (err: any) {
+      console.error("Error fetching watchlist:", err);
+    }
+  };
+
+  // Get movie by ID
+  const getMovieById = async (id: number): Promise<Movie | null> => {
+    try {
+      // First check if the movie is already in our state
+      const cachedMovie = movies.find(movie => movie.id === id);
+      if (cachedMovie) return cachedMovie;
+      
+      // If not, fetch from Supabase
+      const { data: movie, error: movieError } = await supabase
+        .from('movies')
+        .select('*')
+        .eq('id', id)
+        .single();
+        
+      if (movieError) throw movieError;
+      if (!movie) return null;
+      
+      // Fetch categories for this movie
+      const { data: categoryData, error: categoryError } = await supabase
+        .from('movie_categories')
+        .select(`
+          category_id,
+          categories:category_id(id, name)
+        `)
+        .eq('movie_id', id);
+        
+      if (categoryError) throw categoryError;
+      
+      const movieWithCategories = {
+        ...movie,
+        categories: categoryData.map(item => item.categories)
+      };
+      
+      return movieWithCategories;
+    } catch (err) {
+      console.error(`Error fetching movie ${id}:`, err);
+      return null;
+    }
+  };
+
+  // Get movies by category
+  const getMoviesByCategory = async (categoryId: number): Promise<Movie[]> => {
+    try {
+      const { data: movieIds, error: movieIdsError } = await supabase
+        .from('movie_categories')
+        .select('movie_id')
+        .eq('category_id', categoryId);
+        
+      if (movieIdsError) throw movieIdsError;
+      
+      if (!movieIds.length) return [];
+      
+      const ids = movieIds.map(item => item.movie_id);
+      
+      const { data: movies, error: moviesError } = await supabase
+        .from('movies')
+        .select('*')
+        .in('id', ids);
+        
+      if (moviesError) throw moviesError;
+      
+      return movies;
+    } catch (err) {
+      console.error(`Error fetching movies for category ${categoryId}:`, err);
+      return [];
+    }
+  };
+
+  // Search movies by title or description
+  const searchMovies = async (query: string): Promise<Movie[]> => {
+    try {
+      const { data, error } = await supabase
+        .from('movies')
+        .select('*')
+        .or(`title.ilike.%${query}%,description.ilike.%${query}%`);
+        
+      if (error) throw error;
+      
+      return data || [];
+    } catch (err) {
+      console.error(`Error searching movies with query "${query}":`, err);
+      return [];
+    }
+  };
+
+  // Toggle movie in user's watchlist
+  const toggleWatchlist = async (movieId: number) => {
+    const { data: session } = await supabase.auth.getSession();
+    
+    if (!session.session) {
+      // User not logged in, use localStorage
+      setWatchlist(prevWatchlist => {
+        const newWatchlist = prevWatchlist.includes(movieId)
+          ? prevWatchlist.filter(id => id !== movieId)
+          : [...prevWatchlist, movieId];
+        
+        localStorage.setItem("moviemate_watchlist", JSON.stringify(newWatchlist));
+        
+        toast.success(
+          prevWatchlist.includes(movieId) 
+            ? "Removed from watchlist" 
+            : "Added to watchlist"
+        );
+        
+        return newWatchlist;
+      });
+      return;
+    }
+    
+    try {
+      if (watchlist.includes(movieId)) {
+        // Remove from watchlist
+        const { error } = await supabase
+          .from('watchlists')
+          .delete()
+          .eq('user_id', session.session.user.id)
+          .eq('movie_id', movieId);
+          
+        if (error) throw error;
+        
+        setWatchlist(prevWatchlist => prevWatchlist.filter(id => id !== movieId));
+        toast.success("Removed from watchlist");
+      } else {
+        // Add to watchlist
+        const { error } = await supabase
+          .from('watchlists')
+          .insert({
+            user_id: session.session.user.id,
+            movie_id: movieId
+          });
+          
+        if (error) throw error;
+        
+        setWatchlist(prevWatchlist => [...prevWatchlist, movieId]);
+        toast.success("Added to watchlist");
+      }
+    } catch (err: any) {
+      console.error("Error toggling watchlist:", err);
+      toast.error("Error updating watchlist");
+    }
   };
 
   // Get 3 random movies for featured section
@@ -179,9 +284,11 @@ export const MovieProvider = ({ children }: { children: ReactNode }) => {
     .sort(() => 0.5 - Math.random())
     .slice(0, 3);
 
-  // Get newest movies (in a real app would be sorted by release date)
+  // Get newest movies (sorted by created_at)
   const newReleases = [...movies]
-    .sort((a, b) => b.year - a.year)
+    .sort((a, b) => 
+      new Date(b.created_at || '').getTime() - new Date(a.created_at || '').getTime()
+    )
     .slice(0, 4);
 
   return (
