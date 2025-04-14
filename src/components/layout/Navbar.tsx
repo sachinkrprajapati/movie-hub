@@ -31,6 +31,7 @@ export default function Navbar({ onMenuClick }: NavbarProps) {
 
   const goToAdmin = () => {
     navigate("/admin");
+    console.log("Navigating to admin page, user profile:", profile);
   };
 
   return (
