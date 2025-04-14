@@ -9,6 +9,33 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      admin_details: {
+        Row: {
+          access_level: string | null
+          created_at: string
+          department: string | null
+          id: string
+          last_login: string | null
+          updated_at: string
+        }
+        Insert: {
+          access_level?: string | null
+          created_at?: string
+          department?: string | null
+          id: string
+          last_login?: string | null
+          updated_at?: string
+        }
+        Update: {
+          access_level?: string | null
+          created_at?: string
+          department?: string | null
+          id?: string
+          last_login?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       categories: {
         Row: {
           created_at: string
@@ -93,6 +120,27 @@ export type Database = {
           updated_at?: string
           video_url?: string
           year?: number
+        }
+        Relationships: []
+      }
+      password_history: {
+        Row: {
+          created_at: string
+          id: string
+          password_hash: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          password_hash: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          password_hash?: string
+          user_id?: string
         }
         Relationships: []
       }

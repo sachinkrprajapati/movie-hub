@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -10,7 +11,9 @@ import {
   BarChart4, 
   Plus,
   Edit,
-  Trash2
+  Trash2,
+  UserCog,
+  Lock
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
@@ -23,25 +26,87 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Movie, useMovies } from "@/contexts/MovieContext";
+import { supabase } from "@/integrations/supabase/client";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AdminDetailsForm } from "@/components/admin/AdminDetailsForm";
+import { PasswordUpdateForm } from "@/components/admin/PasswordUpdateForm";
+
+export interface AdminDetails {
+  id: string;
+  department: string | null;
+  access_level: string | null;
+  last_login: string | null;
+  created_at: string;
+  updated_at: string;
+}
 
 export default function AdminPage() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const { movies } = useMovies();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
+  const [adminDetails, setAdminDetails] = useState<AdminDetails | null>(null);
+  const [activeTab, setActiveTab] = useState("movies");
 
   useEffect(() => {
-    if (user && user.role !== "admin") {
+    if (user && profile?.role !== "admin") {
       toast.error("You don't have permission to access the admin panel");
       navigate("/");
     }
+    
+    const fetchAdminDetails = async () => {
+      if (user) {
+        try {
+          const { data, error } = await supabase
+            .from("admin_details")
+            .select("*")
+            .eq("id", user.id)
+            .maybeSingle();
+
+          if (error) {
+            console.error("Error fetching admin details:", error);
+          } else if (data) {
+            setAdminDetails(data as AdminDetails);
+          } else {
+            // Create admin details record if it doesn't exist
+            const { error: insertError } = await supabase
+              .from("admin_details")
+              .insert({
+                id: user.id,
+                department: "General",
+                access_level: "Standard",
+                last_login: new Date().toISOString()
+              });
+
+            if (insertError) {
+              console.error("Error creating admin details:", insertError);
+            } else {
+              // Fetch the newly created record
+              const { data: newData } = await supabase
+                .from("admin_details")
+                .select("*")
+                .eq("id", user.id)
+                .maybeSingle();
+                
+              if (newData) {
+                setAdminDetails(newData as AdminDetails);
+              }
+            }
+          }
+        } catch (err) {
+          console.error("Error in admin details setup:", err);
+        }
+      }
+    };
+
+    fetchAdminDetails();
     
     const timer = setTimeout(() => {
       setIsLoading(false);
     }, 1000);
     
     return () => clearTimeout(timer);
-  }, [user, navigate]);
+  }, [user, navigate, profile]);
   
   const handleAddMovie = () => {
     toast.info("This would open the movie creation form");
@@ -55,7 +120,42 @@ export default function AdminPage() {
     toast.info(`Deleting movie: ${movie.title}`);
   };
 
-  if (!user || user.role !== "admin") {
+  const updateAdminDetails = async (updatedDetails: Partial<AdminDetails>) => {
+    if (!user) return;
+    
+    try {
+      const { error } = await supabase
+        .from("admin_details")
+        .update({
+          ...updatedDetails,
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", user.id);
+
+      if (error) {
+        toast.error("Failed to update admin details");
+        console.error("Error updating admin details:", error);
+      } else {
+        toast.success("Admin details updated successfully");
+        
+        // Refresh admin details
+        const { data } = await supabase
+          .from("admin_details")
+          .select("*")
+          .eq("id", user.id)
+          .maybeSingle();
+          
+        if (data) {
+          setAdminDetails(data as AdminDetails);
+        }
+      }
+    } catch (err) {
+      console.error("Error in updating admin details:", err);
+      toast.error("An error occurred while updating admin details");
+    }
+  };
+
+  if (!user || profile?.role !== "admin") {
     return null; // Will redirect in useEffect
   }
 
@@ -109,78 +209,124 @@ export default function AdminPage() {
         </Card>
       </div>
       
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-semibold">Movies Management</h2>
-        <Button onClick={handleAddMovie}>
-          <Plus className="mr-2 h-4 w-4" /> Add Movie
-        </Button>
-      </div>
-      
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Title</TableHead>
-                <TableHead>Year</TableHead>
-                <TableHead>Duration</TableHead>
-                <TableHead>Rating</TableHead>
-                <TableHead>Categories</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                Array(5).fill(0).map((_, index) => (
-                  <TableRow key={index}>
-                    <TableCell className="font-medium">Loading...</TableCell>
-                    <TableCell>...</TableCell>
-                    <TableCell>...</TableCell>
-                    <TableCell>...</TableCell>
-                    <TableCell>...</TableCell>
-                    <TableCell className="text-right">...</TableCell>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
+        <TabsList>
+          <TabsTrigger value="movies">
+            <Film className="mr-2 h-4 w-4" />
+            Movies
+          </TabsTrigger>
+          <TabsTrigger value="admin">
+            <UserCog className="mr-2 h-4 w-4" />
+            Admin Settings
+          </TabsTrigger>
+          <TabsTrigger value="security">
+            <Lock className="mr-2 h-4 w-4" />
+            Security
+          </TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="movies">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-semibold">Movies Management</h2>
+            <Button onClick={handleAddMovie}>
+              <Plus className="mr-2 h-4 w-4" /> Add Movie
+            </Button>
+          </div>
+          
+          <Card>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Title</TableHead>
+                    <TableHead>Year</TableHead>
+                    <TableHead>Duration</TableHead>
+                    <TableHead>Rating</TableHead>
+                    <TableHead>Categories</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
-                ))
-              ) : (
-                movies.map((movie) => (
-                  <TableRow key={movie.id}>
-                    <TableCell className="font-medium">{movie.title}</TableCell>
-                    <TableCell>{movie.year}</TableCell>
-                    <TableCell>{Math.floor(movie.duration / 60)}h {movie.duration % 60}m</TableCell>
-                    <TableCell>{movie.rating.toFixed(1)}</TableCell>
-                    <TableCell>
-                      {movie.categories && movie.categories.map((category) => (
-                        <span 
-                          key={category.id}
-                          className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold mr-1 mb-1"
-                        >
-                          {category.name}
-                        </span>
-                      ))}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button 
-                        variant="ghost" 
-                        size="icon"
-                        onClick={() => handleEditMovie(movie)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="icon"
-                        onClick={() => handleDeleteMovie(movie)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+                </TableHeader>
+                <TableBody>
+                  {isLoading ? (
+                    Array(5).fill(0).map((_, index) => (
+                      <TableRow key={index}>
+                        <TableCell className="font-medium">Loading...</TableCell>
+                        <TableCell>...</TableCell>
+                        <TableCell>...</TableCell>
+                        <TableCell>...</TableCell>
+                        <TableCell>...</TableCell>
+                        <TableCell className="text-right">...</TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    movies.map((movie) => (
+                      <TableRow key={movie.id}>
+                        <TableCell className="font-medium">{movie.title}</TableCell>
+                        <TableCell>{movie.year}</TableCell>
+                        <TableCell>{Math.floor(movie.duration / 60)}h {movie.duration % 60}m</TableCell>
+                        <TableCell>{movie.rating.toFixed(1)}</TableCell>
+                        <TableCell>
+                          {movie.categories && movie.categories.map((category) => (
+                            <span 
+                              key={category.id}
+                              className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold mr-1 mb-1"
+                            >
+                              {category.name}
+                            </span>
+                          ))}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button 
+                            variant="ghost" 
+                            size="icon"
+                            onClick={() => handleEditMovie(movie)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="icon"
+                            onClick={() => handleDeleteMovie(movie)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="admin">
+          <div className="mb-4">
+            <h2 className="text-xl font-semibold mb-2">Admin Account Details</h2>
+            <p className="text-sm text-muted-foreground mb-4">
+              Manage your admin profile and access settings.
+            </p>
+            
+            {adminDetails && (
+              <AdminDetailsForm 
+                adminDetails={adminDetails}
+                onSubmit={updateAdminDetails}
+              />
+            )}
+          </div>
+        </TabsContent>
+        
+        <TabsContent value="security">
+          <div className="mb-4">
+            <h2 className="text-xl font-semibold mb-2">Security Settings</h2>
+            <p className="text-sm text-muted-foreground mb-4">
+              Manage your account security and password settings.
+            </p>
+            
+            <PasswordUpdateForm userId={user.id} />
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
