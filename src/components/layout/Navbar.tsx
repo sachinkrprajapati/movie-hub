@@ -19,7 +19,7 @@ interface NavbarProps {
 
 export default function Navbar({ onMenuClick }: NavbarProps) {
   const [searchValue, setSearchValue] = useState("");
-  const { user, logout } = useAuth();
+  const { user, profile, logout } = useAuth();
   const navigate = useNavigate();
 
   const handleSearch = (e: React.FormEvent) => {
@@ -65,7 +65,7 @@ export default function Navbar({ onMenuClick }: NavbarProps) {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem className="font-medium">{user.name}</DropdownMenuItem>
+                <DropdownMenuItem className="font-medium">{profile?.name || user.email}</DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
                   <Link to="/profile">Profile</Link>
@@ -73,7 +73,7 @@ export default function Navbar({ onMenuClick }: NavbarProps) {
                 <DropdownMenuItem asChild>
                   <Link to="/watchlist">My Watchlist</Link>
                 </DropdownMenuItem>
-                {user.role === "admin" && (
+                {profile?.role === "admin" && (
                   <DropdownMenuItem asChild>
                     <Link to="/admin">Admin Dashboard</Link>
                   </DropdownMenuItem>
