@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -32,7 +31,6 @@ export default function AdminPage() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Check if user is admin, if not redirect to homepage
     if (user && user.role !== "admin") {
       toast.error("You don't have permission to access the admin panel");
       navigate("/");
@@ -151,22 +149,12 @@ export default function AdminPage() {
                     <TableCell>{Math.floor(movie.duration / 60)}h {movie.duration % 60}m</TableCell>
                     <TableCell>{movie.rating.toFixed(1)}</TableCell>
                     <TableCell>
-                      {movie.categoryIds.map((catId) => (
+                      {movie.categories && movie.categories.map((category) => (
                         <span 
-                          key={catId}
+                          key={category.id}
                           className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold mr-1 mb-1"
                         >
-                          {
-                            catId === 1 ? "Action" :
-                            catId === 2 ? "Comedy" :
-                            catId === 3 ? "Drama" :
-                            catId === 4 ? "Horror" :
-                            catId === 5 ? "Romance" :
-                            catId === 6 ? "Sci-Fi" :
-                            catId === 7 ? "Thriller" :
-                            catId === 8 ? "Animation" :
-                            "Unknown"
-                          }
+                          {category.name}
                         </span>
                       ))}
                     </TableCell>
